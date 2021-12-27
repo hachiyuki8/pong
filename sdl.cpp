@@ -18,7 +18,7 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 const int PADDLE_WIDTH = 240;
 const int PADDLE_HEIGHT = 40;
-const int PADDLE_XVELOCITY = 1000;
+const int PADDLE_XVELOCITY = 600;
 const int BALL_RADIUS = 20;
 const int BALL_YVELOCITY = 200;
 const int BALL_XVELOCITY_BASELINE = 200;
@@ -41,7 +41,7 @@ Paddle initializePaddle() {
 }
 
 struct Ball {
-  float x, y, w, h, xvelocity, yvelocity, xdirection, ydirection;
+  float x, y, w, h, r, xvelocity, yvelocity, xdirection, ydirection;
   Uint32 lastUpdate;
 };
 
@@ -51,6 +51,7 @@ Ball initializeBall() {
   b.y = 0;
   b.w = BALL_RADIUS * 2;
   b.h = BALL_RADIUS * 2;
+  b.r = BALL_RADIUS;
   b.xvelocity = BALL_XVELOCITY_BASELINE;
   b.yvelocity = BALL_YVELOCITY;
   b.xdirection = 1; // 1 for right, -1 for left
@@ -74,6 +75,8 @@ struct GameState {
 bool init();
 void kill();
 bool loop(GameState *game);
+float pointDistance(float x1, float y1, float x2, float y2);
+bool checkCollision(Ball b, Paddle p); 
 
 int main(int argc, char **args)
 {
@@ -99,7 +102,7 @@ void renderStartupText() {
 }
 
 void resetGameState(GameState *game) {
-  if (game->state == 0) {
+  if (game->state != 1) {
     game->state = 1;
     game->paddle = initializePaddle();
     game->ball = initializeBall();
@@ -125,15 +128,15 @@ void updatePaddle(GameState *game) {
   float dT = (current - game->paddle.lastUpdate) / 1000.0f;
 
   if (keys[SDL_SCANCODE_A]) {
-    game->paddle.x = max(0.0f, game->paddle.x - game->paddle.xvelocity * dT);
-    if (game->ball.y + BALL_RADIUS >= game->paddle.y && game->ball.y + BALL_RADIUS <= game->paddle.y + game->paddle.h) {
-      game->paddle.x = max(game->paddle.x, game->ball.x + BALL_RADIUS * 2);
+    game->paddle.x -= game->paddle.xvelocity * dT;
+    if (game->paddle.x <= 0 || checkCollision(game->ball, game->paddle)) {
+      game->paddle.x += game->paddle.xvelocity * dT;
     }
   }
   if (keys[SDL_SCANCODE_D]) {
-    game->paddle.x = min((float)SCREEN_WIDTH - game->paddle.w, game->paddle.x + game->paddle.xvelocity * dT);
-    if (game->ball.y + BALL_RADIUS >= game->paddle.y && game->ball.y + BALL_RADIUS <= game->paddle.y + game->paddle.h) {
-      game->paddle.x = min(game->paddle.x, game->ball.x - game->paddle.w);
+    game->paddle.x += game->paddle.xvelocity * dT;
+    if (game->paddle.x + game->paddle.w >= SCREEN_WIDTH || checkCollision(game->ball, game->paddle)) {
+      game->paddle.x -= game->paddle.xvelocity * dT;
     }
   }
 
@@ -146,48 +149,62 @@ void updateCircle(GameState *game) {
 
   game->ball.xvelocity = rand() % BALL_XVELOCITY_RANGE + BALL_XVELOCITY_BASELINE;
 
+  // move up/down
   game->ball.y += game->ball.ydirection * game->ball.yvelocity * dT;
-  if (game->ball.y > SCREEN_HEIGHT) { // lost
+  if (game->ball.y >= SCREEN_HEIGHT) { // lost
     game->state = -1;
     return;
   }
-  if (game->ball.y < 0) {
-    game->ball.y = 0;
+  if (game->ball.y <= 0 || checkCollision(game->ball, game->paddle)) {
+    game->ball.y -= game->ball.ydirection * game->ball.yvelocity * dT;
     game->ball.ydirection *= -1;
   }
 
+  // move left/right
   game->ball.x += game->ball.xdirection * game->ball.xvelocity * dT;
-  if (game->ball.x < 0) {
-    game->ball.x = 0;
+  if (game->ball.x <= 0 || game->ball.x + game->ball.w >= SCREEN_WIDTH || checkCollision(game->ball, game->paddle)) {
+    game->ball.x -= game->ball.xdirection * game->ball.xvelocity * dT;
     game->ball.xdirection *= -1;
-  }
-  if (game->ball.x > SCREEN_WIDTH - game->ball.w) {
-    game->ball.x = SCREEN_WIDTH - game->ball.w;
-    game->ball.xdirection *= -1;
-  }
-
-  if (game->ball.x + BALL_RADIUS >= game->paddle.x && game->ball.x + BALL_RADIUS <= game->paddle.x + game->paddle.w) {
-    if (game->ball.ydirection == 1 && game->ball.y + game->ball.h >= game->paddle.y && game->ball.y <= game->paddle.y) {
-      game->ball.y = game->paddle.y - game->ball.h;
-      game->ball.ydirection *= -1;
-    } else if (game->ball.ydirection == -1 && game->ball.y < game->paddle.y + game->paddle.h && game->ball.y + game->ball.h > game->paddle.y + game->paddle.h) {
-      game->ball.y = game->paddle.y + game->paddle.h;
-      game->ball.ydirection *= -1;
-    }
-  }
-  if (game->ball.y + BALL_RADIUS >= game->paddle.y && game->ball.y + BALL_RADIUS <= game->paddle.y + game->paddle.h) {
-    if (game->ball.xdirection == 1 && game->ball.x + game->ball.w >= game->paddle.x && game->ball.x <= game->paddle.x) {
-      game->ball.x = game->paddle.x - game->ball.w;
-      game->ball.xdirection *= -1;
-    }
-    else if (game->ball.xdirection == -1 && game->ball.x <= game->paddle.x + game->paddle.w && game->ball.x + game->ball.w >= game->paddle.x + game->paddle.w) {
-      game->ball.x = game->paddle.x + game->paddle.w;
-      game->ball.xdirection *= -1;
-    }
   }
 
   game->ball.lastUpdate = current;
 }
+
+float pointDistance(float x1, float y1, float x2, float y2) {
+  float x = x1 - x2;
+  float y = y1 - y2;
+  return sqrt(x * x + y * y);
+}
+
+// https://lazyfoo.net/tutorials/SDL/29_circular_collision_detection/index.php
+bool checkCollision(Ball b, Paddle p) {
+  float cX, cY; // closest points on the paddle
+
+  // center of the ball
+  float centerX = b.x + b.r;
+  float centerY = b.y + b.r;
+
+  // find closest x
+  if (centerX < p.x) {
+    cX = p.x;
+  } else if (centerX > p.x + p.w) {
+    cX = p.x + p.w;
+  } else {
+    cX = centerX;
+  }
+
+  // find closest y
+  if (centerY < p.y) {
+    cY = p.y;
+  } else if (centerY > p.y + p.h) {
+    cY = p.y + p.h;
+  } else {
+    cY = centerY;
+  }
+
+  return pointDistance(centerX, centerY, cX, cY) <= b.r;
+}
+
 
 bool loop(GameState *game) {
   SDL_Event evt;
@@ -215,9 +232,7 @@ bool loop(GameState *game) {
     }
   }
 
-  // paddle control
   updatePaddle(game);
-
   if (game->state == 1) {
     updateCircle(game);
     renderGameState(game);
@@ -226,7 +241,6 @@ bool loop(GameState *game) {
   }
 
   SDL_RenderPresent(renderer);
-
   return true;
 }
 
