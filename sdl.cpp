@@ -22,15 +22,15 @@ const int PADDLE_HEIGHT = 40;
 const int PADDLE_XVELOCITY = 600;
 
 const int BALL_RADIUS = 20;
-const int BALL_YVELOCITY = 200;
-const int BALL_XVELOCITY_BASELINE = 200;
-const int BALL_XVELOCITY_RANGE = 200;
+const int BALL_YVELOCITY = 300;
+const int BALL_XVELOCITY_BASELINE = 100;
+const int BALL_XVELOCITY_RANGE = 400;
 
 const int NUM_ROWS = 5;
 const int NUM_COLUMNS = 10;
-const int RECT_BORDER = 5;
+const int RECT_BORDER = 10;
 const int RECT_WIDTH = SCREEN_WIDTH / NUM_COLUMNS - RECT_BORDER;
-const int RECT_HEIGHT = 55;
+const int RECT_HEIGHT = 50;
 
 struct Paddle {
   float x, y, w, h, xvelocity;
@@ -257,7 +257,7 @@ bool eliminateBlocks(GameState *game) {
   }
   if (!game->rectangles.size()) {
     game->state = 999;
-    cout << "SUCCESS" << endl;
+    cout << "SUCCESS" << endl; // TO-DO: add ending screen
   }
   return flag;
 }
@@ -339,7 +339,7 @@ bool init() {
   }
 
   // paddle
-  SDL_Surface *image = SDL_LoadBMP("paddle.bmp");
+  SDL_Surface *image = SDL_LoadBMP("images/paddle.bmp");
   if (!image) {
     cout << "Error loading image paddle.bmp: " << SDL_GetError() << endl;
     return false;
@@ -352,7 +352,7 @@ bool init() {
   }
 
   // ball
-  SDL_Surface *image2 = SDL_LoadBMP("circle.bmp");
+  SDL_Surface *image2 = SDL_LoadBMP("images/circle.bmp");
   if (!image2) {
     cout << "Error loading image circle.bmp: " << SDL_GetError() << endl;
     return false;
@@ -365,7 +365,7 @@ bool init() {
   }
 
   // rectangles
-  SDL_Surface *image3 = SDL_LoadBMP("rectangle.bmp");
+  SDL_Surface *image3 = SDL_LoadBMP("images/rectangle.bmp");
   if (!image3) {
     cout << "Error loading image rectangle.bmp: " << SDL_GetError() << endl;
     return false;
