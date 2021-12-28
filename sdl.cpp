@@ -694,7 +694,7 @@ bool init() {
   if (!help1_text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
-  help2_text = TTF_RenderText_Solid(help_font, "Player 2: Press keyboard UP and DOWN to control the paddle", help_text_color);
+  help2_text = TTF_RenderText_Solid(help_font, "Player 2: Press UP and DOWN to control the paddle", help_text_color);
   if (!help2_text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
