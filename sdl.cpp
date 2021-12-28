@@ -8,15 +8,21 @@ using namespace std;
 
 SDL_Window *window;
 SDL_Renderer *renderer;
-SDL_Texture *paddle_texture, *ball_texture, *rect_texture, *text_texture, *lose_text_texture, *win_text_texture;
-SDL_Surface *text, *lose_text, *win_text;
-TTF_Font* font;
+TTF_Font* font, *help_font;
+SDL_Texture *paddle_texture, *ball_texture, *rect_texture, *text_texture;
+// game 1
+SDL_Texture *lose_text_texture, *win_text_texture, *help_text_texture; 
+SDL_Surface *text, *lose_text, *win_text, *help_text;
+// game 2
+SDL_Texture *win1_text_texture, *win2_text_texture, *help1_text_texture, *help2_text_texture; 
+SDL_Surface *win1_text, *win2_text, *help1_text, *help2_text;
 
 const Uint8* keys = SDL_GetKeyboardState(NULL);
 
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 
+// game 1
 const int PADDLE_WIDTH = 240;
 const int PADDLE_HEIGHT = 30;
 const int PADDLE_XVELOCITY = 600;
@@ -32,8 +38,18 @@ const int RECT_BORDER = 10;
 const int RECT_WIDTH = SCREEN_WIDTH / NUM_COLUMNS - RECT_BORDER;
 const int RECT_HEIGHT = 50;
 
+// game 2
+const int PADDLE2_WIDTH = 30;
+const int PADDLE2_HEIGHT = 240;
+const int PADDLE2_YVELOCITY = 360;
+
+const int BALL2_RADIUS = 15;
+const int BALL2_XVELOCITY = 600;
+const int BALL2_YVELOCITY_BASELINE = 100;
+const int BALL2_YVELOCITY_RANGE = 200;
+
 struct Paddle {
-  float x, y, w, h, xvelocity;
+  float x, y, w, h, xvelocity, yvelocity;
   Uint32 lastUpdate;
 };
 
@@ -54,16 +70,28 @@ struct GameState {
   int numRows;
 };
 
+struct GameState2 {
+  Paddle paddle1;
+  Paddle paddle2;
+  Ball ball;
+  int state; // 0 for not started, 1 for in progress, -1 for lost, 999 for won
+};
+
 bool init();
 void kill();
 bool loop(GameState *game);
 
 // initialize game states
+// game 1
 void resetGameState(GameState *game);
-Paddle initializePaddle();
-Ball initializeBall();
+Paddle initializePaddle(GameState *game);
+Ball initializeBall(GameState *game);
 Rectangle initializeRectangle(float x, float y);
 vector<Rectangle> initializeRectangles(int numRows);
+// game 2
+void resetGameState(GameState2 *game);
+pair<Paddle, Paddle> initializePaddles(GameState2 *game);
+Ball initializeBall(GameState2 *game);
 
 // dealing with collision
 float pointDistance(float x1, float y1, float x2, float y2);
@@ -76,10 +104,15 @@ void updateCircle(GameState *game);
 
 // render
 void renderStartupText();
+// game 1
+void renderHelpText();
 void renderLoseText();
 void renderWinText();
 void renderGameState(GameState *game);
-
+// game 2
+void renderHelp1Text();
+void renderHelp2Text();
+void renderGameState(GameState2 *game);
 
 /*
  * game
@@ -133,6 +166,7 @@ bool loop(GameState *game) {
     case 1:
       updateCircle(game);
       renderGameState(game);
+      renderHelpText();
       break;
     case -1:
       renderLoseText();
@@ -155,6 +189,12 @@ void renderStartupText() {
   SDL_RenderCopy(renderer, text_texture, NULL, &dest);
 }
 
+void renderHelpText() {
+  help_text_texture = SDL_CreateTextureFromSurface(renderer, help_text);
+  SDL_Rect dest = {(SCREEN_WIDTH - help_text->w)/2, (SCREEN_HEIGHT - help_text->h)/2, help_text->w, help_text->h};
+  SDL_RenderCopy(renderer, help_text_texture, NULL, &dest);
+}
+
 void renderLoseText() {
   lose_text_texture = SDL_CreateTextureFromSurface(renderer, lose_text);
   SDL_Rect dest = {(SCREEN_WIDTH - lose_text->w)/2, SCREEN_HEIGHT/2 - lose_text->h, lose_text->w, lose_text->h};
@@ -173,6 +213,18 @@ void renderWinText() {
   text_texture = SDL_CreateTextureFromSurface(renderer, text);
   dest = {(SCREEN_WIDTH - text->w)/2, SCREEN_HEIGHT/2, text->w, text->h};
   SDL_RenderCopy(renderer, text_texture, NULL, &dest);
+}
+
+void renderHelp1Text() {
+  help1_text_texture = SDL_CreateTextureFromSurface(renderer, help1_text);
+  SDL_Rect dest = {0, 0, help1_text->w, help1_text->h};
+  SDL_RenderCopy(renderer, help1_text_texture, NULL, &dest);
+}
+
+void renderHelp2Text() {
+  help2_text_texture = SDL_CreateTextureFromSurface(renderer, help2_text);
+  SDL_Rect dest = {SCREEN_WIDTH - help2_text->w, 0, help2_text->w, help2_text->h};
+  SDL_RenderCopy(renderer, help2_text_texture, NULL, &dest);
 }
 
 void renderGameState(GameState *game) {
@@ -308,14 +360,24 @@ bool eliminateBlocks(GameState *game) {
 void resetGameState(GameState *game) {
   if (game->state != 1) {
     game->state = 1;
-    game->paddle = initializePaddle();
-    game->ball = initializeBall();
+    game->paddle = initializePaddle(game);
+    game->ball = initializeBall(game);
     game->numRows = NUM_ROWS;
     game->rectangles = initializeRectangles(game->numRows);
   }
 }
 
-Paddle initializePaddle() {
+void resetGameState(GameState2 *game) {
+  if (game->state != 1) {
+    game->state = 1;
+    pair<Paddle, Paddle> paddles = initializePaddles(game);
+    game->paddle1 = paddles.first;
+    game->paddle2 = paddles.second;
+    game->ball = initializeBall(game);
+  }
+}
+
+Paddle initializePaddle(GameState *game) {
   Paddle p;
   p.x = (SCREEN_WIDTH - PADDLE_WIDTH) / 2;
   p.y = SCREEN_HEIGHT - PADDLE_HEIGHT;
@@ -326,7 +388,24 @@ Paddle initializePaddle() {
   return p;
 }
 
-Ball initializeBall() {
+pair<Paddle, Paddle> initializePaddles(GameState2 *game) {
+  Paddle p1, p2;
+  p1.x = 0;
+  p1.y = (SCREEN_HEIGHT - PADDLE2_HEIGHT) / 2;
+  p1.w = PADDLE2_WIDTH;
+  p1.h = PADDLE2_HEIGHT;
+  p1.yvelocity = PADDLE2_YVELOCITY;
+  p1.lastUpdate = SDL_GetTicks();
+  p2.x = SCREEN_WIDTH - PADDLE2_WIDTH;
+  p2.y = (SCREEN_HEIGHT - PADDLE2_HEIGHT) / 2;
+  p2.w = PADDLE2_WIDTH;
+  p2.h = PADDLE2_HEIGHT;
+  p2.yvelocity = PADDLE2_YVELOCITY;
+  p2.lastUpdate = SDL_GetTicks();
+  return make_pair(p1, p2);
+}
+
+Ball initializeBall(GameState *game) {
   Ball b;
   b.x = (SCREEN_WIDTH - BALL_RADIUS) / 2;
   b.y = SCREEN_HEIGHT - PADDLE_HEIGHT - BALL_RADIUS * 2;
@@ -335,6 +414,21 @@ Ball initializeBall() {
   b.r = BALL_RADIUS;
   b.xvelocity = BALL_XVELOCITY_BASELINE;
   b.yvelocity = BALL_YVELOCITY;
+  b.xdirection = 1; // 1 for right, -1 for left
+  b.ydirection = -1; // 1 for down, -1 for up
+  b.lastUpdate = SDL_GetTicks();
+  return b;
+}
+
+Ball initializeBall(GameState2 *game) {
+  Ball b;
+  b.x = PADDLE2_WIDTH;
+  b.y = SCREEN_HEIGHT / 2 - BALL2_RADIUS;
+  b.w = BALL2_RADIUS * 2;
+  b.h = BALL2_RADIUS * 2;
+  b.r = BALL2_RADIUS;
+  b.xvelocity = BALL2_XVELOCITY;
+  b.yvelocity = BALL2_YVELOCITY_BASELINE;
   b.xdirection = 1; // 1 for right, -1 for left
   b.ydirection = -1; // 1 for down, -1 for up
   b.lastUpdate = SDL_GetTicks();
@@ -425,14 +519,19 @@ bool init() {
 		cout << "Error intializing SDL_ttf: " << TTF_GetError() << endl;
 		return false;
 	}
-  font = TTF_OpenFont("font.ttf", 48);
+  font = TTF_OpenFont("font.ttf", 36);
 	if (!font) {
+		cout << "Error loading font: " << TTF_GetError() << endl;
+		return false;
+	}
+  help_font = TTF_OpenFont("font.ttf", 24);
+	if (!help_font) {
 		cout << "Error loading font: " << TTF_GetError() << endl;
 		return false;
 	}
 
   SDL_Color text_color = { 0, 0, 0 };
-  text = TTF_RenderText_Solid(font, "Press SPACEBAR to start", text_color);
+  text = TTF_RenderText_Solid(font, "Press SPACEBAR to start game 1, ENTER to start game 2", text_color);
   if (!text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
@@ -440,8 +539,31 @@ bool init() {
   if (!lose_text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
-  win_text = TTF_RenderText_Solid(font, "You won PogChamp", text_color);
+  win_text = TTF_RenderText_Solid(font, "You won Pog", text_color);
   if (!win_text) {
+    cout << "Failed to render text: " << TTF_GetError() << endl;
+  }
+
+  win1_text = TTF_RenderText_Solid(font, "Player 1 won peepoClap", text_color);
+  if (!win1_text) {
+    cout << "Failed to render text: " << TTF_GetError() << endl;
+  }
+  win2_text = TTF_RenderText_Solid(font, "Player 2 won peepoClap", text_color);
+  if (!win2_text) {
+    cout << "Failed to render text: " << TTF_GetError() << endl;
+  }
+  
+  SDL_Color help_text_color = { 255, 0, 0 };
+  help_text = TTF_RenderText_Solid(help_font, "Press A and D to control the paddle", help_text_color);
+  if (!help_text) {
+    cout << "Failed to render text: " << TTF_GetError() << endl;
+  }
+  help1_text = TTF_RenderText_Solid(help_font, "Player 1: Press W and S to control the paddle", help_text_color);
+  if (!help1_text) {
+    cout << "Failed to render text: " << TTF_GetError() << endl;
+  }
+  help2_text = TTF_RenderText_Solid(help_font, "Player 2: Press keyboard UP and DOWN to control the paddle", help_text_color);
+  if (!help2_text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
 
@@ -453,12 +575,23 @@ bool init() {
 
 void kill() {
   TTF_CloseFont(font);
+  TTF_CloseFont(help_font);
   SDL_FreeSurface(text);
   SDL_FreeSurface(lose_text);
   SDL_FreeSurface(win_text);
+  SDL_FreeSurface(help_text);
+  SDL_FreeSurface(win1_text);
+  SDL_FreeSurface(win2_text);
+  SDL_FreeSurface(help1_text);
+  SDL_FreeSurface(help2_text);
   SDL_DestroyTexture(text_texture);
   SDL_DestroyTexture(lose_text_texture);
   SDL_DestroyTexture(win_text_texture);
+  SDL_DestroyTexture(help_text_texture);
+  SDL_DestroyTexture(win1_text_texture);
+  SDL_DestroyTexture(win2_text_texture);
+  SDL_DestroyTexture(help1_text_texture);
+  SDL_DestroyTexture(help2_text_texture);
   SDL_DestroyTexture(paddle_texture);
   SDL_DestroyTexture(ball_texture);
   SDL_DestroyRenderer(renderer);
