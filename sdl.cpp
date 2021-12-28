@@ -9,15 +9,15 @@ using namespace std;
 SDL_Window *window;
 SDL_Renderer *renderer;
 TTF_Font* font, *help_font;
-SDL_Texture *paddle_texture, *ball_texture, *rect_texture, *text_texture;
+SDL_Texture *paddle_texture, *ball_texture, *rect_texture, *text_texture, *end_text_texture, *help_text_texture; 
+SDL_Surface *text;
 // game 1
-SDL_Texture *lose_text_texture, *win_text_texture, *help_text_texture; 
-SDL_Surface *text, *lose_text, *win_text, *help_text;
+SDL_Surface *lose_text, *win_text, *help_text;
 // game 2
-SDL_Texture *win1_text_texture, *win2_text_texture, *help1_text_texture, *help2_text_texture; 
 SDL_Surface *win1_text, *win2_text, *help1_text, *help2_text;
 
 const Uint8* keys = SDL_GetKeyboardState(NULL);
+int curGame = 0; // 1 for game 1, -1 for game 2
 
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
@@ -40,7 +40,7 @@ const int RECT_HEIGHT = 50;
 
 // game 2
 const int PADDLE2_WIDTH = 30;
-const int PADDLE2_HEIGHT = 240;
+const int PADDLE2_HEIGHT = 180;
 const int PADDLE2_YVELOCITY = 360;
 
 const int BALL2_RADIUS = 15;
@@ -74,12 +74,12 @@ struct GameState2 {
   Paddle paddle1;
   Paddle paddle2;
   Ball ball;
-  int state; // 0 for not started, 1 for in progress, -1 for lost, 999 for won
+  int state; // 0 for not started, 1 for in progress, -1 for player 1 won, -2 for player 2 won
 };
 
 bool init();
 void kill();
-bool loop(GameState *game);
+bool loop(GameState *game, GameState2 *game2);
 
 // initialize game states
 // game 1
@@ -95,23 +95,26 @@ Ball initializeBall(GameState2 *game);
 
 // dealing with collision
 float pointDistance(float x1, float y1, float x2, float y2);
-float checkCollision(Ball b, float x, float y, float w, float h); 
+pair<float, float> checkCollision(Ball b, float x, float y, float w, float h); 
 bool eliminateBlocks(GameState *game);
 
 // update object states
+// game 1
 void updatePaddle(GameState *game);
 void updateCircle(GameState *game);
+// game 2
+void updatePaddle(GameState2 *game);
+void updateCircle(GameState2 *game);
 
 // render
 void renderStartupText();
 // game 1
 void renderHelpText();
-void renderLoseText();
-void renderWinText();
+void renderEndText(SDL_Surface *text);
 void renderGameState(GameState *game);
 // game 2
-void renderHelp1Text();
-void renderHelp2Text();
+void renderHelpText2();
+void renderEndText2(SDL_Surface *text);
 void renderGameState(GameState2 *game);
 
 /*
@@ -125,9 +128,11 @@ int main(int argc, char **args)
 	}
 
   GameState game;
+  GameState2 game2;
   game.state = 0;
+  game2.state = 0;
 
-  while(loop(&game)) {
+  while(loop(&game, &game2)) {
   }
 
   // End the program
@@ -135,14 +140,14 @@ int main(int argc, char **args)
   return 0;
 }
 
-bool loop(GameState *game) {
+bool loop(GameState *game, GameState2 *game2) {
   SDL_Event evt;
 
   // clear the screen to white
   SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
   SDL_RenderClear(renderer);
 
-  if (game->state == 0) {
+  if (game->state == 0 && game2->state == 0) {
     renderStartupText();
   }
 
@@ -153,30 +158,56 @@ bool loop(GameState *game) {
         return false;
       case SDL_KEYDOWN:
         switch (evt.key.keysym.sym) {
-          // start/restart game
+          // game 1
           case SDLK_SPACE:
-            resetGameState(game); 
+            resetGameState(game);
+            curGame = 1;
+            break;
+          // game 2
+          case SDLK_RETURN:
+            resetGameState(game2);
+            curGame = -1;
             break;
         }
     }
   }
 
-  updatePaddle(game);
-  switch (game->state) {
-    case 1:
-      updateCircle(game);
-      renderGameState(game);
-      renderHelpText();
-      break;
-    case -1:
-      renderLoseText();
-      break;
-    case 999:
-      renderWinText();
-      break;
-    case 0:
-      renderStartupText();
-      break;
+  if (curGame == 1) {
+    updatePaddle(game);
+    switch (game->state) {
+      case 1:
+        updateCircle(game);
+        renderGameState(game);
+        renderHelpText();
+        break;
+      case -1:
+        renderEndText(lose_text);
+        break;
+      case 999:
+        renderEndText(win_text);
+        break;
+      case 0:
+        renderStartupText();
+        break;
+    }
+  } else if (curGame == -1) {
+    updatePaddle(game2);
+    switch (game2->state) {
+      case 1:
+        updateCircle(game2);
+        renderGameState(game2);
+        renderHelpText2();
+        break;
+      case -1:
+        renderEndText2(win1_text);
+        break;
+      case -2:
+        renderEndText2(win2_text);
+        break;
+      case 0:
+        renderStartupText();
+        break;
+    }
   }
 
   SDL_RenderPresent(renderer);
@@ -195,36 +226,34 @@ void renderHelpText() {
   SDL_RenderCopy(renderer, help_text_texture, NULL, &dest);
 }
 
-void renderLoseText() {
-  lose_text_texture = SDL_CreateTextureFromSurface(renderer, lose_text);
-  SDL_Rect dest = {(SCREEN_WIDTH - lose_text->w)/2, SCREEN_HEIGHT/2 - lose_text->h, lose_text->w, lose_text->h};
-  SDL_RenderCopy(renderer, lose_text_texture, NULL, &dest);
+void renderEndText(SDL_Surface *end_text) {
+  end_text_texture = SDL_CreateTextureFromSurface(renderer, end_text);
+  SDL_Rect dest = {(SCREEN_WIDTH - end_text->w)/2, SCREEN_HEIGHT/2 - end_text->h, end_text->w, end_text->h};
+  SDL_RenderCopy(renderer, end_text_texture, NULL, &dest);
   
   text_texture = SDL_CreateTextureFromSurface(renderer, text);
   dest = {(SCREEN_WIDTH - text->w)/2, SCREEN_HEIGHT/2, text->w, text->h};
   SDL_RenderCopy(renderer, text_texture, NULL, &dest);
-}
+} 
 
-void renderWinText() {
-  win_text_texture = SDL_CreateTextureFromSurface(renderer, win_text);
-  SDL_Rect dest = {(SCREEN_WIDTH - win_text->w)/2, SCREEN_HEIGHT/2 - win_text->h, win_text->w, win_text->h};
-  SDL_RenderCopy(renderer, win_text_texture, NULL, &dest);
-  
-  text_texture = SDL_CreateTextureFromSurface(renderer, text);
-  dest = {(SCREEN_WIDTH - text->w)/2, SCREEN_HEIGHT/2, text->w, text->h};
-  SDL_RenderCopy(renderer, text_texture, NULL, &dest);
-}
-
-void renderHelp1Text() {
-  help1_text_texture = SDL_CreateTextureFromSurface(renderer, help1_text);
+void renderHelpText2() {
+  help_text_texture = SDL_CreateTextureFromSurface(renderer, help1_text);
   SDL_Rect dest = {0, 0, help1_text->w, help1_text->h};
-  SDL_RenderCopy(renderer, help1_text_texture, NULL, &dest);
+  SDL_RenderCopy(renderer, help_text_texture, NULL, &dest);
+
+  help_text_texture = SDL_CreateTextureFromSurface(renderer, help2_text);
+  dest = {SCREEN_WIDTH - help2_text->w, 0, help2_text->w, help2_text->h};
+  SDL_RenderCopy(renderer, help_text_texture, NULL, &dest);
 }
 
-void renderHelp2Text() {
-  help2_text_texture = SDL_CreateTextureFromSurface(renderer, help2_text);
-  SDL_Rect dest = {SCREEN_WIDTH - help2_text->w, 0, help2_text->w, help2_text->h};
-  SDL_RenderCopy(renderer, help2_text_texture, NULL, &dest);
+void renderEndText2(SDL_Surface *end_text) {
+  end_text_texture = SDL_CreateTextureFromSurface(renderer, end_text);
+  SDL_Rect dest = {(SCREEN_WIDTH - end_text->w)/2, SCREEN_HEIGHT/2 - end_text->h, end_text->w, end_text->h};
+  SDL_RenderCopy(renderer, end_text_texture, NULL, &dest);
+  
+  text_texture = SDL_CreateTextureFromSurface(renderer, text);
+  dest = {(SCREEN_WIDTH - text->w)/2, SCREEN_HEIGHT/2, text->w, text->h};
+  SDL_RenderCopy(renderer, text_texture, NULL, &dest);
 }
 
 void renderGameState(GameState *game) {
@@ -249,6 +278,25 @@ void renderGameState(GameState *game) {
   SDL_RenderCopy(renderer, ball_texture, NULL, &b);
 }
 
+void renderGameState(GameState2 *game) {
+  SDL_Rect p1, p2, b;
+  p1.x = game->paddle1.x;
+  p1.y = game->paddle1.y;
+  p1.w = game->paddle1.w;
+  p1.h = game->paddle1.h;
+  p2.x = game->paddle2.x;
+  p2.y = game->paddle2.y;
+  p2.w = game->paddle2.w;
+  p2.h = game->paddle2.h;
+  b.x = game->ball.x;
+  b.y = game->ball.y;
+  b.w = game->ball.w;
+  b.h = game->ball.h;
+  SDL_RenderCopy(renderer, paddle_texture, NULL, &p1);
+  SDL_RenderCopy(renderer, paddle_texture, NULL, &p2);
+  SDL_RenderCopy(renderer, ball_texture, NULL, &b);
+}
+
 void updatePaddle(GameState *game) {
   Uint32 current = SDL_GetTicks();
   float dT = (current - game->paddle.lastUpdate) / 1000.0f;
@@ -256,14 +304,14 @@ void updatePaddle(GameState *game) {
   if (keys[SDL_SCANCODE_A]) {
     game->paddle.x -= game->paddle.xvelocity * dT;
     if (game->paddle.x <= 0 || 
-        checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h) >= 0) {
+        checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h).first >= 0) {
       game->paddle.x += game->paddle.xvelocity * dT;
     }
   }
   if (keys[SDL_SCANCODE_D]) {
     game->paddle.x += game->paddle.xvelocity * dT;
     if (game->paddle.x + game->paddle.w >= SCREEN_WIDTH || 
-        checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h) >= 0) {
+        checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h).first >= 0) {
       game->paddle.x -= game->paddle.xvelocity * dT;
     }
   }
@@ -271,12 +319,53 @@ void updatePaddle(GameState *game) {
   game->paddle.lastUpdate = current;
 }
 
+void updatePaddle(GameState2 *game) {
+  Uint32 current = SDL_GetTicks();
+  float dT1 = (current - game->paddle1.lastUpdate) / 1000.0f;
+  float dT2 = (current - game->paddle2.lastUpdate) / 1000.0f;
+
+  // paddle 1
+  if (keys[SDL_SCANCODE_W]) {
+    game->paddle1.y -= game->paddle1.yvelocity * dT1;
+    if (game->paddle1.y <= 0 || 
+        checkCollision(game->ball, game->paddle1.x, game->paddle1.y, game->paddle1.w, game->paddle1.h).second >= 0) {
+      game->paddle1.y += game->paddle1.yvelocity * dT1;
+    }
+  }
+  if (keys[SDL_SCANCODE_S]) {
+    game->paddle1.y += game->paddle1.yvelocity * dT1;
+    if (game->paddle1.y + game->paddle1.h >= SCREEN_HEIGHT || 
+        checkCollision(game->ball, game->paddle1.x, game->paddle1.y, game->paddle1.w, game->paddle1.h).second >= 0) {
+      game->paddle1.y -= game->paddle1.yvelocity * dT1;
+    }
+  }
+
+  // paddle 2
+  if (keys[SDL_SCANCODE_UP]) {
+    game->paddle2.y -= game->paddle2.yvelocity * dT2;
+    if (game->paddle2.y <= 0 || 
+        checkCollision(game->ball, game->paddle2.x, game->paddle2.y, game->paddle2.w, game->paddle2.h).second >= 0) {
+      game->paddle2.y += game->paddle2.yvelocity * dT2;
+    }
+  }
+  if (keys[SDL_SCANCODE_DOWN]) {
+    game->paddle2.y += game->paddle2.yvelocity * dT2;
+    if (game->paddle2.y + game->paddle2.h >= SCREEN_HEIGHT || 
+        checkCollision(game->ball, game->paddle2.x, game->paddle2.y, game->paddle2.w, game->paddle2.h).second >= 0) {
+      game->paddle2.y -= game->paddle2.yvelocity * dT2;
+    }
+  }
+
+  game->paddle1.lastUpdate = current;
+  game->paddle2.lastUpdate = current;
+}
+
 void updateCircle(GameState *game) {
   Uint32 current = SDL_GetTicks();
   float dT = (current - game->ball.lastUpdate) / 1000.0f;
 
   game->ball.y += game->ball.ydirection * game->ball.yvelocity * dT;
-  float cX = checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h);
+  float cX = checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h).first;
   if (game->ball.y >= SCREEN_HEIGHT) { // lost
     game->state = -1;
     return;
@@ -295,10 +384,50 @@ void updateCircle(GameState *game) {
 
   game->ball.x += game->ball.xdirection * game->ball.xvelocity * dT;
   if (game->ball.x <= 0 || game->ball.x + game->ball.w >= SCREEN_WIDTH || 
-      checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h) >= 0 || 
+      checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h).first >= 0 || 
       eliminateBlocks(game)) {
     game->ball.x -= game->ball.xdirection * game->ball.xvelocity * dT;
     game->ball.xdirection *= -1;
+  }
+
+  game->ball.lastUpdate = current;
+}
+
+void updateCircle(GameState2 *game) {
+  Uint32 current = SDL_GetTicks();
+  float dT = (current - game->ball.lastUpdate) / 1000.0f;
+
+  game->ball.x += game->ball.xdirection * game->ball.xvelocity * dT;
+  float cY1 = checkCollision(game->ball, game->paddle1.x, game->paddle1.y, game->paddle1.w, game->paddle1.h).second;
+  float cY2 = checkCollision(game->ball, game->paddle2.x, game->paddle2.y, game->paddle2.w, game->paddle2.h).second;
+  if (game->ball.x <= 0) { // player 2 won
+    game->state = -2;
+    return;
+  } else if (game->ball.x >= SCREEN_WIDTH) { // player 1 won
+    game->state = -1;
+    return;
+  } else if (cY1 >= 0) {
+    game->ball.x -= game->ball.xdirection * game->ball.xvelocity * dT;
+    game->ball.xdirection *= -1;
+
+    // new yvelocity proportional to distance between collision point and paddle center
+    float scale = abs(cY1 - (game->paddle1.y + game->paddle1.h / 2)) / (game->paddle1.h / 2);
+    game->ball.yvelocity = BALL2_YVELOCITY_BASELINE + BALL2_YVELOCITY_RANGE * scale;
+  } else if (cY2 >= 0) {
+    game->ball.x -= game->ball.xdirection * game->ball.xvelocity * dT;
+    game->ball.xdirection *= -1;
+
+    // new yvelocity proportional to distance between collision point and paddle center
+    float scale = abs(cY2 - (game->paddle2.y + game->paddle2.h / 2)) / (game->paddle2.h / 2);
+    game->ball.yvelocity = BALL2_YVELOCITY_BASELINE + BALL2_YVELOCITY_RANGE * scale;
+  }
+
+  game->ball.y += game->ball.ydirection * game->ball.yvelocity * dT;
+  if (game->ball.y <= 0 || game->ball.y + game->ball.h >= SCREEN_HEIGHT || 
+      checkCollision(game->ball, game->paddle1.x, game->paddle1.y, game->paddle1.w, game->paddle1.h).second >= 0 ||
+      checkCollision(game->ball, game->paddle2.x, game->paddle2.y, game->paddle2.w, game->paddle2.h).second >= 0) {
+    game->ball.y -= game->ball.ydirection * game->ball.yvelocity * dT;
+    game->ball.ydirection *= -1;
   }
 
   game->ball.lastUpdate = current;
@@ -310,7 +439,7 @@ float pointDistance(float x1, float y1, float x2, float y2) {
   return sqrt(x * x + y * y);
 }
 
-float checkCollision(Ball b, float x, float y, float w, float h) {
+pair<float, float> checkCollision(Ball b, float x, float y, float w, float h) {
   float cX, cY; // closest points on the other object
 
   // center of the ball
@@ -336,9 +465,9 @@ float checkCollision(Ball b, float x, float y, float w, float h) {
   }
 
   if (pointDistance(centerX, centerY, cX, cY) <= b.r) {
-    return cX; 
+    return make_pair(cX, cY); 
   } else {
-    return -1; // no collision
+    return make_pair(-1, -1); // no collision
   }
 }
 
@@ -346,7 +475,7 @@ bool eliminateBlocks(GameState *game) {
   bool flag = false;
   for (int i = 0; i < game->rectangles.size(); i++) {
     Rectangle& r = game->rectangles[i];
-    if (checkCollision(game->ball, r.x, r.y, r.w, r.h) >= 0) {
+    if (checkCollision(game->ball, r.x, r.y, r.w, r.h).first >= 0) {
       flag = true;
       game->rectangles.erase(game->rectangles.begin() + i);
     }
@@ -422,15 +551,18 @@ Ball initializeBall(GameState *game) {
 
 Ball initializeBall(GameState2 *game) {
   Ball b;
-  b.x = PADDLE2_WIDTH;
+  b.x = SCREEN_WIDTH / 2 - BALL2_RADIUS;
   b.y = SCREEN_HEIGHT / 2 - BALL2_RADIUS;
   b.w = BALL2_RADIUS * 2;
   b.h = BALL2_RADIUS * 2;
   b.r = BALL2_RADIUS;
   b.xvelocity = BALL2_XVELOCITY;
   b.yvelocity = BALL2_YVELOCITY_BASELINE;
-  b.xdirection = 1; // 1 for right, -1 for left
-  b.ydirection = -1; // 1 for down, -1 for up
+  int d[2] = {-1, 1};
+  int i1 = rand() % 2;
+  int i2 = rand() % 2;
+  b.xdirection = d[i1]; // 1 for right, -1 for left
+  b.ydirection = d[i2]; // 1 for down, -1 for up
   b.lastUpdate = SDL_GetTicks();
   return b;
 }
@@ -531,7 +663,7 @@ bool init() {
 	}
 
   SDL_Color text_color = { 0, 0, 0 };
-  text = TTF_RenderText_Solid(font, "Press SPACEBAR to start game 1, ENTER to start game 2", text_color);
+  text = TTF_RenderText_Solid(font, "Press SPACEBAR to start game 1, RETURN to start game 2", text_color);
   if (!text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
@@ -585,15 +717,11 @@ void kill() {
   SDL_FreeSurface(help1_text);
   SDL_FreeSurface(help2_text);
   SDL_DestroyTexture(text_texture);
-  SDL_DestroyTexture(lose_text_texture);
-  SDL_DestroyTexture(win_text_texture);
+  SDL_DestroyTexture(end_text_texture);
   SDL_DestroyTexture(help_text_texture);
-  SDL_DestroyTexture(win1_text_texture);
-  SDL_DestroyTexture(win2_text_texture);
-  SDL_DestroyTexture(help1_text_texture);
-  SDL_DestroyTexture(help2_text_texture);
   SDL_DestroyTexture(paddle_texture);
   SDL_DestroyTexture(ball_texture);
+  SDL_DestroyTexture(rect_texture);
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
 
