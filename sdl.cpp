@@ -8,15 +8,16 @@ using namespace std;
 
 SDL_Window *window;
 SDL_Renderer *renderer;
-TTF_Font* font, *help_font;
-SDL_Texture *paddle_texture, *ball_texture, *rect_texture, *text_texture, *end_text_texture, *help_text_texture; 
+TTF_Font *font, *help_font;
+SDL_Texture *paddle_texture, *ball_texture, *rect_texture, *text_texture,
+    *end_text_texture, *help_text_texture;
 SDL_Surface *text;
 // game 1
 SDL_Surface *lose_text, *win_text, *help_text;
 // game 2
 SDL_Surface *win1_text, *win2_text, *help1_text, *help2_text;
 
-const Uint8* keys = SDL_GetKeyboardState(NULL);
+const Uint8 *keys = SDL_GetKeyboardState(NULL);
 int curGame = 0; // 1 for game 1, -1 for game 2
 
 const int SCREEN_WIDTH = 1280;
@@ -74,7 +75,8 @@ struct GameState2 {
   Paddle paddle1;
   Paddle paddle2;
   Ball ball;
-  int state; // 0 for not started, 1 for in progress, -1 for player 1 won, -2 for player 2 won
+  int state; // 0 for not started, 1 for in progress, -1 for player 1 won, -2
+             // for player 2 won
 };
 
 bool init();
@@ -95,7 +97,7 @@ Ball initializeBall(GameState2 *game);
 
 // dealing with collision
 float pointDistance(float x1, float y1, float x2, float y2);
-pair<float, float> checkCollision(Ball b, float x, float y, float w, float h); 
+pair<float, float> checkCollision(Ball b, float x, float y, float w, float h);
 bool eliminateBlocks(GameState *game);
 
 // update object states
@@ -120,19 +122,18 @@ void renderGameState(GameState2 *game);
 /*
  * game
  */
-int main(int argc, char **args)
-{
+int main(int argc, char **args) {
   if (!init()) {
-		system("pause");
-		return 1;
-	}
+    system("pause");
+    return 1;
+  }
 
   GameState game;
   GameState2 game2;
   game.state = 0;
   game2.state = 0;
 
-  while(loop(&game, &game2)) {
+  while (loop(&game, &game2)) {
   }
 
   // End the program
@@ -154,59 +155,59 @@ bool loop(GameState *game, GameState2 *game2) {
   // event loop
   while (SDL_PollEvent(&evt) != 0) {
     switch (evt.type) {
-      case SDL_QUIT:
-        return false;
-      case SDL_KEYDOWN:
-        switch (evt.key.keysym.sym) {
-          // game 1
-          case SDLK_SPACE:
-            resetGameState(game);
-            curGame = 1;
-            break;
-          // game 2
-          case SDLK_RETURN:
-            resetGameState(game2);
-            curGame = -1;
-            break;
-        }
+    case SDL_QUIT:
+      return false;
+    case SDL_KEYDOWN:
+      switch (evt.key.keysym.sym) {
+      // game 1
+      case SDLK_SPACE:
+        resetGameState(game);
+        curGame = 1;
+        break;
+      // game 2
+      case SDLK_RETURN:
+        resetGameState(game2);
+        curGame = -1;
+        break;
+      }
     }
   }
 
   if (curGame == 1) {
     updatePaddle(game);
     switch (game->state) {
-      case 1:
-        updateCircle(game);
-        renderGameState(game);
-        renderHelpText();
-        break;
-      case -1:
-        renderEndText(lose_text);
-        break;
-      case 999:
-        renderEndText(win_text);
-        break;
-      case 0:
-        renderStartupText();
-        break;
+    case 1:
+      updateCircle(game);
+      renderGameState(game);
+      renderHelpText();
+      break;
+    case -1:
+      renderEndText(lose_text);
+      break;
+    case 999:
+      renderEndText(win_text);
+      break;
+    case 0:
+      renderStartupText();
+      break;
     }
   } else if (curGame == -1) {
     updatePaddle(game2);
     switch (game2->state) {
-      case 1:
-        updateCircle(game2);
-        renderGameState(game2);
-        renderHelpText2();
-        break;
-      case -1:
-        renderEndText2(win1_text);
-        break;
-      case -2:
-        renderEndText2(win2_text);
-        break;
-      case 0:
-        renderStartupText();
-        break;
+    case 1:
+      updateCircle(game2);
+      renderGameState(game2);
+      renderHelpText2();
+      break;
+    case -1:
+      renderEndText2(win1_text);
+      break;
+    case -2:
+      renderEndText2(win2_text);
+      break;
+    case 0:
+      renderStartupText();
+      break;
     }
   }
 
@@ -216,25 +217,29 @@ bool loop(GameState *game, GameState2 *game2) {
 
 void renderStartupText() {
   text_texture = SDL_CreateTextureFromSurface(renderer, text);
-  SDL_Rect dest = {(SCREEN_WIDTH - text->w)/2, (SCREEN_HEIGHT - text->h)/2, text->w, text->h};
+  SDL_Rect dest = {(SCREEN_WIDTH - text->w) / 2, (SCREEN_HEIGHT - text->h) / 2,
+                   text->w, text->h};
   SDL_RenderCopy(renderer, text_texture, NULL, &dest);
 }
 
 void renderHelpText() {
   help_text_texture = SDL_CreateTextureFromSurface(renderer, help_text);
-  SDL_Rect dest = {(SCREEN_WIDTH - help_text->w)/2, (SCREEN_HEIGHT - help_text->h)/2, help_text->w, help_text->h};
+  SDL_Rect dest = {(SCREEN_WIDTH - help_text->w) / 2,
+                   (SCREEN_HEIGHT - help_text->h) / 2, help_text->w,
+                   help_text->h};
   SDL_RenderCopy(renderer, help_text_texture, NULL, &dest);
 }
 
 void renderEndText(SDL_Surface *end_text) {
   end_text_texture = SDL_CreateTextureFromSurface(renderer, end_text);
-  SDL_Rect dest = {(SCREEN_WIDTH - end_text->w)/2, SCREEN_HEIGHT/2 - end_text->h, end_text->w, end_text->h};
+  SDL_Rect dest = {(SCREEN_WIDTH - end_text->w) / 2,
+                   SCREEN_HEIGHT / 2 - end_text->h, end_text->w, end_text->h};
   SDL_RenderCopy(renderer, end_text_texture, NULL, &dest);
-  
+
   text_texture = SDL_CreateTextureFromSurface(renderer, text);
-  dest = {(SCREEN_WIDTH - text->w)/2, SCREEN_HEIGHT/2, text->w, text->h};
+  dest = {(SCREEN_WIDTH - text->w) / 2, SCREEN_HEIGHT / 2, text->w, text->h};
   SDL_RenderCopy(renderer, text_texture, NULL, &dest);
-} 
+}
 
 void renderHelpText2() {
   help_text_texture = SDL_CreateTextureFromSurface(renderer, help1_text);
@@ -248,11 +253,12 @@ void renderHelpText2() {
 
 void renderEndText2(SDL_Surface *end_text) {
   end_text_texture = SDL_CreateTextureFromSurface(renderer, end_text);
-  SDL_Rect dest = {(SCREEN_WIDTH - end_text->w)/2, SCREEN_HEIGHT/2 - end_text->h, end_text->w, end_text->h};
+  SDL_Rect dest = {(SCREEN_WIDTH - end_text->w) / 2,
+                   SCREEN_HEIGHT / 2 - end_text->h, end_text->w, end_text->h};
   SDL_RenderCopy(renderer, end_text_texture, NULL, &dest);
-  
+
   text_texture = SDL_CreateTextureFromSurface(renderer, text);
-  dest = {(SCREEN_WIDTH - text->w)/2, SCREEN_HEIGHT/2, text->w, text->h};
+  dest = {(SCREEN_WIDTH - text->w) / 2, SCREEN_HEIGHT / 2, text->w, text->h};
   SDL_RenderCopy(renderer, text_texture, NULL, &dest);
 }
 
@@ -266,7 +272,7 @@ void renderGameState(GameState *game) {
   b.y = game->ball.y;
   b.w = game->ball.w;
   b.h = game->ball.h;
-  for (auto rec: game->rectangles) {
+  for (auto rec : game->rectangles) {
     SDL_Rect r;
     r.x = rec.x;
     r.y = rec.y;
@@ -303,15 +309,19 @@ void updatePaddle(GameState *game) {
 
   if (keys[SDL_SCANCODE_A]) {
     game->paddle.x -= game->paddle.xvelocity * dT;
-    if (game->paddle.x <= 0 || 
-        checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h).first >= 0) {
+    if (game->paddle.x <= 0 ||
+        checkCollision(game->ball, game->paddle.x, game->paddle.y,
+                       game->paddle.w, game->paddle.h)
+                .first >= 0) {
       game->paddle.x += game->paddle.xvelocity * dT;
     }
   }
   if (keys[SDL_SCANCODE_D]) {
     game->paddle.x += game->paddle.xvelocity * dT;
-    if (game->paddle.x + game->paddle.w >= SCREEN_WIDTH || 
-        checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h).first >= 0) {
+    if (game->paddle.x + game->paddle.w >= SCREEN_WIDTH ||
+        checkCollision(game->ball, game->paddle.x, game->paddle.y,
+                       game->paddle.w, game->paddle.h)
+                .first >= 0) {
       game->paddle.x -= game->paddle.xvelocity * dT;
     }
   }
@@ -327,15 +337,19 @@ void updatePaddle(GameState2 *game) {
   // paddle 1
   if (keys[SDL_SCANCODE_W]) {
     game->paddle1.y -= game->paddle1.yvelocity * dT1;
-    if (game->paddle1.y <= 0 || 
-        checkCollision(game->ball, game->paddle1.x, game->paddle1.y, game->paddle1.w, game->paddle1.h).second >= 0) {
+    if (game->paddle1.y <= 0 ||
+        checkCollision(game->ball, game->paddle1.x, game->paddle1.y,
+                       game->paddle1.w, game->paddle1.h)
+                .second >= 0) {
       game->paddle1.y += game->paddle1.yvelocity * dT1;
     }
   }
   if (keys[SDL_SCANCODE_S]) {
     game->paddle1.y += game->paddle1.yvelocity * dT1;
-    if (game->paddle1.y + game->paddle1.h >= SCREEN_HEIGHT || 
-        checkCollision(game->ball, game->paddle1.x, game->paddle1.y, game->paddle1.w, game->paddle1.h).second >= 0) {
+    if (game->paddle1.y + game->paddle1.h >= SCREEN_HEIGHT ||
+        checkCollision(game->ball, game->paddle1.x, game->paddle1.y,
+                       game->paddle1.w, game->paddle1.h)
+                .second >= 0) {
       game->paddle1.y -= game->paddle1.yvelocity * dT1;
     }
   }
@@ -343,15 +357,19 @@ void updatePaddle(GameState2 *game) {
   // paddle 2
   if (keys[SDL_SCANCODE_UP]) {
     game->paddle2.y -= game->paddle2.yvelocity * dT2;
-    if (game->paddle2.y <= 0 || 
-        checkCollision(game->ball, game->paddle2.x, game->paddle2.y, game->paddle2.w, game->paddle2.h).second >= 0) {
+    if (game->paddle2.y <= 0 ||
+        checkCollision(game->ball, game->paddle2.x, game->paddle2.y,
+                       game->paddle2.w, game->paddle2.h)
+                .second >= 0) {
       game->paddle2.y += game->paddle2.yvelocity * dT2;
     }
   }
   if (keys[SDL_SCANCODE_DOWN]) {
     game->paddle2.y += game->paddle2.yvelocity * dT2;
-    if (game->paddle2.y + game->paddle2.h >= SCREEN_HEIGHT || 
-        checkCollision(game->ball, game->paddle2.x, game->paddle2.y, game->paddle2.w, game->paddle2.h).second >= 0) {
+    if (game->paddle2.y + game->paddle2.h >= SCREEN_HEIGHT ||
+        checkCollision(game->ball, game->paddle2.x, game->paddle2.y,
+                       game->paddle2.w, game->paddle2.h)
+                .second >= 0) {
       game->paddle2.y -= game->paddle2.yvelocity * dT2;
     }
   }
@@ -365,7 +383,9 @@ void updateCircle(GameState *game) {
   float dT = (current - game->ball.lastUpdate) / 1000.0f;
 
   game->ball.y += game->ball.ydirection * game->ball.yvelocity * dT;
-  float cX = checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h).first;
+  float cX = checkCollision(game->ball, game->paddle.x, game->paddle.y,
+                            game->paddle.w, game->paddle.h)
+                 .first;
   if (game->ball.y >= SCREEN_HEIGHT) { // lost
     game->state = -1;
     return;
@@ -377,14 +397,19 @@ void updateCircle(GameState *game) {
     game->ball.y -= game->ball.ydirection * game->ball.yvelocity * dT;
     game->ball.ydirection *= -1;
 
-    // new xvelocity proportional to distance between collision point and paddle center
-    float scale = abs(cX - (game->paddle.x + game->paddle.w / 2)) / (game->paddle.w / 2);
-    game->ball.xvelocity = BALL_XVELOCITY_BASELINE + BALL_XVELOCITY_RANGE * scale;
+    // new xvelocity proportional to distance between collision point and paddle
+    // center
+    float scale =
+        abs(cX - (game->paddle.x + game->paddle.w / 2)) / (game->paddle.w / 2);
+    game->ball.xvelocity =
+        BALL_XVELOCITY_BASELINE + BALL_XVELOCITY_RANGE * scale;
   }
 
   game->ball.x += game->ball.xdirection * game->ball.xvelocity * dT;
-  if (game->ball.x <= 0 || game->ball.x + game->ball.w >= SCREEN_WIDTH || 
-      checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w, game->paddle.h).first >= 0 || 
+  if (game->ball.x <= 0 || game->ball.x + game->ball.w >= SCREEN_WIDTH ||
+      checkCollision(game->ball, game->paddle.x, game->paddle.y, game->paddle.w,
+                     game->paddle.h)
+              .first >= 0 ||
       eliminateBlocks(game)) {
     game->ball.x -= game->ball.xdirection * game->ball.xvelocity * dT;
     game->ball.xdirection *= -1;
@@ -398,8 +423,12 @@ void updateCircle(GameState2 *game) {
   float dT = (current - game->ball.lastUpdate) / 1000.0f;
 
   game->ball.x += game->ball.xdirection * game->ball.xvelocity * dT;
-  float cY1 = checkCollision(game->ball, game->paddle1.x, game->paddle1.y, game->paddle1.w, game->paddle1.h).second;
-  float cY2 = checkCollision(game->ball, game->paddle2.x, game->paddle2.y, game->paddle2.w, game->paddle2.h).second;
+  float cY1 = checkCollision(game->ball, game->paddle1.x, game->paddle1.y,
+                             game->paddle1.w, game->paddle1.h)
+                  .second;
+  float cY2 = checkCollision(game->ball, game->paddle2.x, game->paddle2.y,
+                             game->paddle2.w, game->paddle2.h)
+                  .second;
   if (game->ball.x <= 0) { // player 2 won
     game->state = -2;
     return;
@@ -410,22 +439,32 @@ void updateCircle(GameState2 *game) {
     game->ball.x -= game->ball.xdirection * game->ball.xvelocity * dT;
     game->ball.xdirection *= -1;
 
-    // new yvelocity proportional to distance between collision point and paddle center
-    float scale = abs(cY1 - (game->paddle1.y + game->paddle1.h / 2)) / (game->paddle1.h / 2);
-    game->ball.yvelocity = BALL2_YVELOCITY_BASELINE + BALL2_YVELOCITY_RANGE * scale;
+    // new yvelocity proportional to distance between collision point and paddle
+    // center
+    float scale = abs(cY1 - (game->paddle1.y + game->paddle1.h / 2)) /
+                  (game->paddle1.h / 2);
+    game->ball.yvelocity =
+        BALL2_YVELOCITY_BASELINE + BALL2_YVELOCITY_RANGE * scale;
   } else if (cY2 >= 0) {
     game->ball.x -= game->ball.xdirection * game->ball.xvelocity * dT;
     game->ball.xdirection *= -1;
 
-    // new yvelocity proportional to distance between collision point and paddle center
-    float scale = abs(cY2 - (game->paddle2.y + game->paddle2.h / 2)) / (game->paddle2.h / 2);
-    game->ball.yvelocity = BALL2_YVELOCITY_BASELINE + BALL2_YVELOCITY_RANGE * scale;
+    // new yvelocity proportional to distance between collision point and paddle
+    // center
+    float scale = abs(cY2 - (game->paddle2.y + game->paddle2.h / 2)) /
+                  (game->paddle2.h / 2);
+    game->ball.yvelocity =
+        BALL2_YVELOCITY_BASELINE + BALL2_YVELOCITY_RANGE * scale;
   }
 
   game->ball.y += game->ball.ydirection * game->ball.yvelocity * dT;
-  if (game->ball.y <= 0 || game->ball.y + game->ball.h >= SCREEN_HEIGHT || 
-      checkCollision(game->ball, game->paddle1.x, game->paddle1.y, game->paddle1.w, game->paddle1.h).second >= 0 ||
-      checkCollision(game->ball, game->paddle2.x, game->paddle2.y, game->paddle2.w, game->paddle2.h).second >= 0) {
+  if (game->ball.y <= 0 || game->ball.y + game->ball.h >= SCREEN_HEIGHT ||
+      checkCollision(game->ball, game->paddle1.x, game->paddle1.y,
+                     game->paddle1.w, game->paddle1.h)
+              .second >= 0 ||
+      checkCollision(game->ball, game->paddle2.x, game->paddle2.y,
+                     game->paddle2.w, game->paddle2.h)
+              .second >= 0) {
     game->ball.y -= game->ball.ydirection * game->ball.yvelocity * dT;
     game->ball.ydirection *= -1;
   }
@@ -465,7 +504,7 @@ pair<float, float> checkCollision(Ball b, float x, float y, float w, float h) {
   }
 
   if (pointDistance(centerX, centerY, cX, cY) <= b.r) {
-    return make_pair(cX, cY); 
+    return make_pair(cX, cY);
   } else {
     return make_pair(-1, -1); // no collision
   }
@@ -474,7 +513,7 @@ pair<float, float> checkCollision(Ball b, float x, float y, float w, float h) {
 bool eliminateBlocks(GameState *game) {
   bool flag = false;
   for (int i = 0; i < game->rectangles.size(); i++) {
-    Rectangle& r = game->rectangles[i];
+    Rectangle &r = game->rectangles[i];
     if (checkCollision(game->ball, r.x, r.y, r.w, r.h).first >= 0) {
       flag = true;
       game->rectangles.erase(game->rectangles.begin() + i);
@@ -543,7 +582,7 @@ Ball initializeBall(GameState *game) {
   b.r = BALL_RADIUS;
   b.xvelocity = BALL_XVELOCITY_BASELINE;
   b.yvelocity = BALL_YVELOCITY;
-  b.xdirection = 1; // 1 for right, -1 for left
+  b.xdirection = 1;  // 1 for right, -1 for left
   b.ydirection = -1; // 1 for down, -1 for up
   b.lastUpdate = SDL_GetTicks();
   return b;
@@ -580,29 +619,30 @@ vector<Rectangle> initializeRectangles(int numRows) {
   vector<Rectangle> rs;
   for (int row = 0; row < numRows; row++) {
     for (int col = 0; col < SCREEN_WIDTH / (RECT_WIDTH + RECT_BORDER); col++) {
-      Rectangle r = initializeRectangle(col * (RECT_WIDTH + RECT_BORDER), row * (RECT_HEIGHT + RECT_BORDER));
-        rs.push_back(r);
+      Rectangle r = initializeRectangle(col * (RECT_WIDTH + RECT_BORDER),
+                                        row * (RECT_HEIGHT + RECT_BORDER));
+      rs.push_back(r);
     }
   }
   return rs;
 }
 
 bool init() {
-  if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
-  {
+  if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
     cout << "Error initializing SDL: " << SDL_GetError() << endl;
     return false;
   }
 
-  window = SDL_CreateWindow("Example", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
-  if (!window)
-  {
+  window = SDL_CreateWindow("Example", SDL_WINDOWPOS_UNDEFINED,
+                            SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH,
+                            SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+  if (!window) {
     cout << "Error creating window: " << SDL_GetError() << endl;
     return false;
   }
-  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
-  if (!renderer)
-  {
+  renderer = SDL_CreateRenderer(
+      window, -1, SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_ACCELERATED);
+  if (!renderer) {
     cout << "Error creating renderer: " << SDL_GetError() << endl;
     return false;
   }
@@ -648,22 +688,24 @@ bool init() {
 
   // texts
   if (TTF_Init() < 0) {
-		cout << "Error intializing SDL_ttf: " << TTF_GetError() << endl;
-		return false;
-	}
+    cout << "Error intializing SDL_ttf: " << TTF_GetError() << endl;
+    return false;
+  }
   font = TTF_OpenFont("font.ttf", 36);
-	if (!font) {
-		cout << "Error loading font: " << TTF_GetError() << endl;
-		return false;
-	}
+  if (!font) {
+    cout << "Error loading font: " << TTF_GetError() << endl;
+    return false;
+  }
   help_font = TTF_OpenFont("font.ttf", 24);
-	if (!help_font) {
-		cout << "Error loading font: " << TTF_GetError() << endl;
-		return false;
-	}
+  if (!help_font) {
+    cout << "Error loading font: " << TTF_GetError() << endl;
+    return false;
+  }
 
-  SDL_Color text_color = { 0, 0, 0 };
-  text = TTF_RenderText_Solid(font, "Press SPACEBAR to start game 1, RETURN to start game 2", text_color);
+  SDL_Color text_color = {0, 0, 0};
+  text = TTF_RenderText_Solid(
+      font, "Press SPACEBAR to start game 1, RETURN to start game 2",
+      text_color);
   if (!text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
@@ -684,17 +726,22 @@ bool init() {
   if (!win2_text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
-  
-  SDL_Color help_text_color = { 255, 0, 0 };
-  help_text = TTF_RenderText_Solid(help_font, "Press A and D to control the paddle", help_text_color);
+
+  SDL_Color help_text_color = {255, 0, 0};
+  help_text = TTF_RenderText_Solid(
+      help_font, "Press A and D to control the paddle", help_text_color);
   if (!help_text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
-  help1_text = TTF_RenderText_Solid(help_font, "Player 1: Press W and S to control the paddle", help_text_color);
+  help1_text = TTF_RenderText_Solid(
+      help_font, "Player 1: Press W and S to control the paddle",
+      help_text_color);
   if (!help1_text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
-  help2_text = TTF_RenderText_Solid(help_font, "Player 2: Press UP and DOWN to control the paddle", help_text_color);
+  help2_text = TTF_RenderText_Solid(
+      help_font, "Player 2: Press UP and DOWN to control the paddle",
+      help_text_color);
   if (!help2_text) {
     cout << "Failed to render text: " << TTF_GetError() << endl;
   }
